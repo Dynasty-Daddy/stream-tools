@@ -1,34 +1,23 @@
-from flask import Flask, redirect, render_template_string, request, jsonify, url_for
-import threading
+from flask import Flask, redirect, render_template_string, request, url_for, session
 import requests as http_requests
 import obsws_python as obs
 from obsws_python.error import OBSSDKRequestError
 from dotenv import load_dotenv
+from constants import CONFIG_HTML, DEFAULT_PLAYER_IMG_URL, IMG_CSS, NFL_TEAM_IMG_URL, PAGE_HTML, PLAYER_IMG_URL, PLAYER_LIST_URL, TEAM_PRIMARY_COLOR_HEX
 import os
-
-TEAM_PRIMARY_COLOR_HEX = {
-    "ARI": "#97233F", "ATL": "#A71930", "BAL": "#241773", "BUF": "#00338D",
-    "CAR": "#0085CA", "CHI": "#0B162A", "CIN": "#FB4F14", "CLE": "#311D00",
-    "DAL": "#041E42", "DEN": "#002244", "DET": "#0076B6", "GB":  "#203731",
-    "HOU": "#03202F", "IND": "#002C5F", "JAX": "#006778", "KC":  "#E31837",
-    "LV":  "#000000", "LAC": "#002A5E", "LA":  "#003594", "MIA": "#008E97",
-    "MIN": "#4F2683", "NE":  "#002244", "NO":  "#D3BC8D", "NYG": "#0B2265",
-    "NYJ": "#125740", "PHI": "#004C54", "PIT": "#FFB612", "SF":  "#AA0000",
-    "SEA": "#002244", "TB":  "#D50A0A", "TEN": "#4B92DB", "WAS": "#773141"
-}
 
 # CONFIGURE
 load_dotenv()
 OBS_HOST = os.getenv("OBS_HOST")
 OBS_PORT = int(os.getenv("OBS_PORT"))
 OBS_PASSWORD = os.getenv("OBS_PASSWORD")
-PLAYER_LIST_URL = "https://dynasty-daddy.com/api/v1/player/all/today"
 
 app = Flask(__name__)
 ws = obs.ReqClient(host=OBS_HOST, port=OBS_PORT, password=OBS_PASSWORD)
 
 # Load player list once on startup
 player_list = []
+queue = []
 try:
     resp = http_requests.get(PLAYER_LIST_URL)
     if resp.status_code == 200:
@@ -36,88 +25,78 @@ try:
 except Exception as e:
     print("Error loading players:", e)
 
-
 def hex_to_rgb(color_hex):
     color_hex = color_hex.lstrip("#")
     return tuple(int(color_hex[i:i+2], 16) for i in (0, 2, 4))
 
-
 def update_obs(player):
     print(player)
-    try:
-        ws.set_input_settings(
-            "PlayerNameText",
-            {"text": player['full_name']},
-            True
-        )
-    except OBSSDKRequestError as e:
-        print(f"Warning: Couldn't update PlayerNameText - {e}")
-    
-    try:
-        ws.set_input_settings(
-            "PlayerTeamText",
-            {"text": player['team']},
-            True
-        )
-    except OBSSDKRequestError as e:
-        print(f"Warning: Couldn't update PlayerTeamText - {e}")
-    
-    try:
-        ws.set_input_settings(
-            "PlayerSFValueText",
-            {"text": str(player.get('sf_trade_value', '0'))},
-            True
-        )
-    except OBSSDKRequestError as e:
-        print(f"Warning: Couldn't update PlayerTeamText - {e}")
-    
-    try:
-        ws.set_input_settings(
-            "PlayerValueText",
-            {"text": str(player.get('trade_value', '0'))},
-            True
-        )
-    except OBSSDKRequestError as e:
-        print(f"Warning: Couldn't update PlayerTeamText - {e}")
+
+    fields = {
+        "PlayerName": player['full_name'],
+        "PlayerFirstName": player['first_name'],
+        "PlayerLastName": player['last_name'],
+        "PlayerTeam": player['team'],
+        "PlayerSFValue": str(player.get('sf_trade_value', '0')),
+        "PlayerValue": str(player.get('trade_value', '0')),
+        "PlayerSFPosRank": str(player.get('sf_position_rank', '0')),
+        "PlayerPosRank": str(player.get('position_rank', '0')),
+        "PlayerSFRank": str(player.get('sf_overall_rank', '0')),
+        "PlayerRank": str(player.get('overall_rank', '0')),
+        "PlayerPosition": player.get('position', ''),
+        "PlayerAge": str(player.get('age', '')),
+        "PlayerExperience": str(player.get('experience', '')),
+        "PlayerInjuryStatus": player.get('injury_status') or "Healthy",
+        "PlayerDynastyADP": str(player.get('dynasty_daddy_adp', '')),
+        "PlayerUnderdogADP": str(player.get('underdog_adp', '')),
+        "PlayerAvgADP": str(player.get('avg_adp', '')),
+        # Add more fields as needed...
+    }
+
+    for input_name, text_value in fields.items():
+        try:
+            ws.set_input_settings(input_name, {"text": text_value}, True)
+        except OBSSDKRequestError as e:
+            if e.code == 600:
+                print(f"⚠️ Skipped missing source: '{input_name}'")
+            else:
+                print(f"⚠️ Error updating '{input_name}' - {e}")
+
+    # Player Image Mapping
+    player_img_url = DEFAULT_PLAYER_IMG_URL
+    sleeper_id = player['sleeper_id']
+    if sleeper_id is not None:
+        player_img_url = PLAYER_IMG_URL.replace("SLEEPER_ID", sleeper_id)
 
     try:
         ws.set_input_settings(
-            "PlayerSFPosRankText",
-            {"text": str(player.get('sf_position_rank', '0'))},
+            "PlayerImg",
+            {
+            "url": player_img_url,
+            "css": IMG_CSS,
+            },
             True
         )
     except OBSSDKRequestError as e:
-        print(f"Warning: Couldn't update PlayerSFPosRankText - {e}")
-    
-    try:
-        ws.set_input_settings(
-            "PlayerPosRankText",
-            {"text": str(player.get('position_rank', '0'))},
-            True
-        )
-    except OBSSDKRequestError as e:
-        print(f"Warning: Couldn't update PlayerPosRankText - {e}")
-        
+        print(f"⚠️ Error updating PlayerImg source - {str(e)}")
+
+    # Team Image Mapping
+    team_acc = player['team'].lower()
+    team_img_url = NFL_TEAM_IMG_URL.replace("TEAM_ACC", team_acc)
 
     try:
         ws.set_input_settings(
-            "PlayerSFRankText",
-            {"text": str(player.get('sf_overall_rank', '0'))},
+            "PlayerTeamImg",
+            {
+            "url": team_img_url,
+            "css": IMG_CSS,
+            },
             True
         )
     except OBSSDKRequestError as e:
-        print(f"Warning: Couldn't update PlayerSFRankText - {e}")
+        print(f"⚠️ Error updating PlayerTeamImg source - {str(e)}")
     
-    try:
-        ws.set_input_settings(
-            "PlayerRankText",
-            {"text": str(player.get('overall_rank', '0'))},
-            True
-        )
-    except OBSSDKRequestError as e:
-        print(f"Warning: Couldn't update PlayerRankText - {e}")
-
-    # Calculate RGB color from hex
+    # Team Color Mapping
     color_hex = TEAM_PRIMARY_COLOR_HEX.get(player['team'], "#FFFFFF")
     r, g, b = hex_to_rgb(color_hex)
     color_int = (r << 16) + (g << 8) + b
@@ -131,16 +110,31 @@ def update_obs(player):
     except OBSSDKRequestError as e:
         print(f"Warning: Couldn't update color filter - {e}")
 
+def get_queue():
+    return session.get("queue", [])
+
+def save_queue(queue):
+    session["queue"] = queue
 
 @app.route("/", methods=["GET"])
 def home():
-    q = request.args.get("q", "").lower()
-    if q:
-        filtered = [p for p in player_list if q in p['full_name'].lower()]
-    else:
-        filtered = player_list[:50]  # Show top 50 if no query
-    return render_template_string(PAGE_HTML, players=filtered, query=q)
+    # Check if config in session, else redirect to config page
+    if not all(k in session for k in ('obs_host', 'obs_port')):
+        return redirect(url_for("config"))
 
+    query = request.args.get("q", "").lower()
+    if query:
+        filtered = [p for p in player_list if query in p['full_name'].lower()]
+    else:
+        filtered = player_list[:25]
+    queue_ids = get_queue()
+    queue_players = []
+    player_map = {p['name_id']: p for p in player_list}
+    for name_id in queue_ids:
+        player = player_map.get(name_id)
+        if player:
+            queue_players.append(player)
+    return render_template_string(PAGE_HTML, query=query, players=filtered, queue=queue_players)
 
 @app.route("/select_player/<string:name_id>")
 def select_player(name_id):
@@ -149,19 +143,46 @@ def select_player(name_id):
         update_obs(player)
     return redirect(url_for('home'))
 
-PAGE_HTML = """
-<!doctype html>
-<title>Player Overlay Control</title>
-<h1>Search Player</h1>
-<form method="get">
-    <input type="text" name="q" value="{{ query }}" placeholder="Search name..." autofocus>
-    <button type="submit">Search</button>
-</form>
-<ul>
-{% for player in players %}
-  <li><a href="{{ url_for('select_player', name_id=player['name_id']) }}">{{ player['full_name'] }}</a></li>
-{% endfor %}
-</ul>"""
+@app.route("/queue/<name_id>")
+def queue_player(name_id):
+    queue = get_queue()
+    if name_id not in queue:
+        queue.append(name_id)
+        save_queue(queue)
+    return redirect(url_for("home"))
+
+@app.route("/play-next", methods=["POST"])
+def play_next_player():
+    queue = get_queue()
+    if queue:
+        name_id = queue.pop(0)
+        save_queue(queue)
+        player = next((p for p in player_list if p["name_id"] == name_id), None)
+        if player:
+            update_obs(player)
+    return redirect(url_for("home"))
+
+@app.route("/clear-queue", methods=["POST"])
+def clear_queue():
+    save_queue([])
+    return redirect(url_for("home"))
+
+@app.route("/config", methods=["GET", "POST"])
+def config():
+    if request.method == "POST":
+        session['obs_host'] = request.form['host']
+        session['obs_port'] = int(request.form['port'])
+        session['obs_password'] = request.form.get('password', '')
+        return redirect(url_for("home"))
+
+    # Prefill form if session has values
+    return render_template_string(
+        CONFIG_HTML,
+        host=session.get('obs_host'),
+        port=session.get('obs_port', 4455),
+        password=session.get('obs_password')
+    )
 
 if __name__ == "__main__":
+    app.secret_key = "supersecret"
     app.run(port=5000)
