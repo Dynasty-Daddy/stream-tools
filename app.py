@@ -1,9 +1,10 @@
+from datetime import datetime
 from flask import Flask, redirect, render_template_string, request, url_for, session
 import requests as http_requests
 import obsws_python as obs
 from obsws_python.error import OBSSDKRequestError
 from dotenv import load_dotenv
-from constants import CONFIG_HTML, DEFAULT_PLAYER_IMG_URL, IMG_CSS, NFL_TEAM_IMG_URL, PAGE_HTML, PLAYER_IMG_URL, PLAYER_LIST_URL, TEAM_PRIMARY_COLOR_HEX
+from constants import CONFIG_HTML, DEFAULT_PLAYER_IMG_URL, IMG_CSS, NFL_TEAM_IMG_URL, PAGE_HTML, PLAYER_IMG_URL, PLAYER_LIST_URL, PLAYER_STATS_URL, TEAM_PRIMARY_COLOR_HEX
 import os
 
 # CONFIGURE
@@ -13,7 +14,6 @@ OBS_PORT = int(os.getenv("OBS_PORT"))
 OBS_PASSWORD = os.getenv("OBS_PASSWORD")
 
 app = Flask(__name__)
-ws = obs.ReqClient(host=OBS_HOST, port=OBS_PORT, password=OBS_PASSWORD)
 
 # Load player list once on startup
 player_list = []
@@ -25,12 +25,46 @@ try:
 except Exception as e:
     print("Error loading players:", e)
 
+player_stats = {}
+try:
+    now = datetime.now()
+    season = now.year if now.month >= 9 else now.year - 1
+    resp = http_requests.get(PLAYER_STATS_URL.replace("SEASON", str(season)))
+    if resp.status_code == 200:
+        player_stats = resp.json()
+except Exception as e:
+    print("Error loading player stats:", e)
+
+def get_obs_config():
+    # Prefer .env values if available
+    if OBS_HOST and OBS_PORT:
+        return {
+            "host": OBS_HOST,
+            "port": int(OBS_PORT),
+            "password": OBS_PASSWORD or ""
+        }
+
+    # Fallback to session values
+    return {
+        "host": session.get("obs_host"),
+        "port": int(session.get("obs_port", 4455)),
+        "password": session.get("obs_password", "")
+    }
+
 def hex_to_rgb(color_hex):
     color_hex = color_hex.lstrip("#")
     return tuple(int(color_hex[i:i+2], 16) for i in (0, 2, 4))
 
-def update_obs(player):
-    print(player)
+def update_obs_player(player):
+    config = get_obs_config()
+    ws = obs.ReqClient(
+        host=config["host"],
+        port=config["port"],
+        password=config["password"]
+    )
+
+    sleeper_id = str(player.get("sleeper_id"))
+    stats = player_stats.get(sleeper_id, {})
 
     fields = {
         "PlayerName": player['full_name'],
@@ -50,6 +84,23 @@ def update_obs(player):
         "PlayerDynastyADP": str(player.get('dynasty_daddy_adp', '')),
         "PlayerUnderdogADP": str(player.get('underdog_adp', '')),
         "PlayerAvgADP": str(player.get('avg_adp', '')),
+        "PlayerPPRPoints": str(stats.get("pts_ppr", "0")),
+        "PlayerTotalHalfPPR": str(stats.get("pts_half_ppr", 0.0)),
+        "PlayerTotalPPR": str(stats.get("pts_ppr", 0.0)),
+        "PlayerTotalSTD": str(stats.get("pts_std", 0.0)),
+        "PlayerPPGHalfPPR": f"{stats.get('pts_half_ppr', 0.0) / stats.get('gp', 1):.2f}",
+        "PlayerPPGPPR": f"{stats.get('pts_ppr', 0.0) / stats.get('gp', 1):.2f}",
+        "PlayerPPGSTD": f"{stats.get('pts_std', 0.0) / stats.get('gp', 1):.2f}",
+        "PlayerReceptions": str(player.get("rec", 0)),
+        "PlayerReceivingYards": str(player.get("rec_yd", 0)),
+        "PlayerReceivingTDs": str(player.get("rec_td", 0)),
+        "PlayerRushingAttempts": str(player.get("rush_att", 0)),
+        "PlayerRushingYards": str(player.get("rush_yd", 0)),
+        "PlayerRushingTDs": str(player.get("rush_td", 0)),
+        "PlayerPassingYards": str(player.get("pass_yd", 0)),
+        "PlayerPassingTDs": str(player.get("pass_td", 0)),
+        "PlayerInterceptions": str(player.get("int", 0)),
+        "PlayerGamesPlayed": str(player.get("gp", 0)),
         # Add more fields as needed...
     }
 
@@ -119,7 +170,8 @@ def save_queue(queue):
 @app.route("/", methods=["GET"])
 def home():
     # Check if config in session, else redirect to config page
-    if not all(k in session for k in ('obs_host', 'obs_port')):
+    config = get_obs_config()
+    if not config["host"] or not config["port"]:
         return redirect(url_for("config"))
 
     query = request.args.get("q", "").lower()
@@ -140,7 +192,7 @@ def home():
 def select_player(name_id):
     player = next((p for p in player_list if p["name_id"] == name_id), None)
     if player:
-        update_obs(player)
+        update_obs_player(player)
     return redirect(url_for('home'))
 
 @app.route("/queue/<name_id>")
@@ -159,12 +211,20 @@ def play_next_player():
         save_queue(queue)
         player = next((p for p in player_list if p["name_id"] == name_id), None)
         if player:
-            update_obs(player)
+            update_obs_player(player)
     return redirect(url_for("home"))
 
 @app.route("/clear-queue", methods=["POST"])
 def clear_queue():
-    save_queue([])
+    session["queue"] = []
+    return redirect(url_for("home"))
+
+@app.route("/remove-from-queue/<string:name_id>")
+def remove_from_queue(name_id):
+    queue = session.get("queue", [])
+    if name_id in queue:
+        queue.remove(name_id)
+        session["queue"] = queue
     return redirect(url_for("home"))
 
 @app.route("/config", methods=["GET", "POST"])

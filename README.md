@@ -1,5 +1,5 @@
 
-# 🎮 OBS Player Overlay Updater
+# Dynasty Daddy Stream Suite
 
 A simple Python tool that connects to OBS using WebSocket and dynamically updates:
 
@@ -13,7 +13,7 @@ Perfect for fantasy football, live streams, or sports podcasts!
 
 ## ✅ Requirements
 
-### 1. OBS Setup
+### OBS Setup
 
 - Install OBS Studio: https://obsproject.com/  
 - Install OBS WebSocket Plugin: https://github.com/obsproject/obs-websocket/releases  
@@ -28,29 +28,64 @@ Then:
 
 ---
 
-### 2. Install Python & Packages
+### ⚙️ Configuration with .env File
+You can configure the connection to your OBS WebSocket server by creating a `.env` file in the project root directory.
 
-Make sure you have Python 3.8+ installed.
-
-Install required packages:
+Create `.env` file from the `.env.template`.
+Add the following variables:
 
 ```
-pip install obs-websocket-py requests
+OBS_HOST=localhost
+OBS_PORT=4455
+OBS_PASSWORD=your_password_here
 ```
 
----
+OBS_HOST: The hostname or IP address of your OBS WebSocket server (usually localhost if running locally)
+OBS_PORT: The port number of the WebSocket server (default is 4455)
+OBS_PASSWORD: The password you set for your OBS WebSocket server (can be empty if no password set)
 
 ## 🎯 OBS Scene Setup
 
 Create the following sources in your OBS scene **with exact names**:
 
-| Source Name        | Type         | Description                             |
-|--------------------|--------------|-----------------------------------------|
-| PlayerNameText     | Text (GDI+)  | Shows player name                       |
-| PlayerTeamText     | Text (GDI+)  | Shows team name                         |
-| PlayerStatsText    | Text (GDI+)  | Shows player stats                      |
-| PlayerImage        | Image        | Displays player's image                 |
-| OverlayBox         | Color or Image | Used to dynamically change background color |
+| Field Name            | OBS Type | Description                                            |
+| --------------------- | ---- | ------------------------------------------------------ |
+| PlayerName            | Text (GDI+)   | Full name of the player                                |
+| PlayerFirstName       | Text (GDI+)   | Player's first name                                    |
+| PlayerLastName        | Text (GDI+)   | Player's last name                                     |
+| PlayerTeam            | Text (GDI+)   | Player's team abbreviation (e.g., "NE", "DAL")         |
+| PlayerImg             | Browser       | Image of the player                                    |
+| PlayerTeamImg         | Browser       | Image of the player's team logo                        |
+| PlayerSFValue         | Text (GDI+)   | Sleeper Fantasy trade value                            |
+| PlayerValue           | Text (GDI+)   | General trade value                                    |
+| PlayerSFPosRank       | Text (GDI+)   | Sleeper Fantasy position rank                          |
+| PlayerPosRank         | Text (GDI+)   | Position rank                                          |
+| PlayerSFRank          | Text (GDI+)   | Sleeper Fantasy overall rank                           |
+| PlayerRank            | Text (GDI+)   | Overall player rank                                    |
+| PlayerPosition        | Text (GDI+)   | Player's position (e.g., "QB", "RB")                   |
+| PlayerAge             | Text (GDI+)   | Player's age                                           |
+| PlayerExperience      | Text (GDI+)   | Years of experience in the league                      |
+| PlayerInjuryStatus    | Text (GDI+)   | Injury status (e.g., "Healthy", "Out", "Questionable") |
+| PlayerDynastyADP      | Text (GDI+)   | Dynasty ADP (Average Draft Position)                   |
+| PlayerUnderdogADP     | Text (GDI+)   | Underdog ADP                                           |
+| PlayerAvgADP          | Text (GDI+)   | Average ADP across platforms                           |
+| PlayerPPRPoints       | Text (GDI+)   | Total PPR fantasy points                               |
+| PlayerTotalHalfPPR    | Text (GDI+)   | Total Half-PPR fantasy points                          |
+| PlayerTotalPPR        | Text (GDI+)   | Total PPR fantasy points                               |
+| PlayerTotalSTD        | Text (GDI+)   | Total Standard scoring fantasy points                  |
+| PlayerPPGHalfPPR      | Text (GDI+)   | Average fantasy points per game (Half-PPR)             |
+| PlayerPPGPPR          | Text (GDI+)   | Average fantasy points per game (PPR)                  |
+| PlayerPPGSTD          | Text (GDI+)   | Average fantasy points per game (Standard)             |
+| PlayerReceptions      | Text (GDI+)   | Total receptions                                       |
+| PlayerReceivingYards  | Text (GDI+)   | Total receiving yards                                  |
+| PlayerReceivingTDs    | Text (GDI+)   | Total receiving touchdowns                             |
+| PlayerRushingAttempts | Text (GDI+)   | Total rushing attempts                                 |
+| PlayerRushingYards    | Text (GDI+)   | Total rushing yards                                    |
+| PlayerRushingTDs      | Text (GDI+)   | Total rushing touchdowns                               |
+| PlayerPassingYards    | Text (GDI+)   | Total passing yards                                    |
+| PlayerPassingTDs      | Text (GDI+)   | Total passing touchdowns                               |
+| PlayerInterceptions   | Text (GDI+)   | Total interceptions                                    |
+| PlayerGamesPlayed     | Text (GDI+)   | Total games played                                     |
 
 ---
 
@@ -63,63 +98,15 @@ Create the following sources in your OBS scene **with exact names**:
 
 ---
 
-## 🚀 Running the Script
+## Development
 
-Update this section of `main.py` with your settings:
+1. (Optional) Create and activate a virtual environment  
+2. Install dependencies: `pip install -r requirements.txt`  
+3. Build a standalone executable with:
 
-```python
-OBS_HOST = "localhost"
-OBS_PORT = 4455
-OBS_PASSWORD = "your_password_here"
-
-PLAYER_LIST_URL = "https://your-api.com/players"
-PLAYER_INFO_URL = "https://your-api.com/player/"
+```bash
+pyinstaller --onefile app.py
 ```
-
-Then run the script:
-
-```
-python main.py
-```
-
-You'll see a list of players printed in your terminal.  
-Select a number, and the overlay will update in OBS.
-
----
-
-## 🔄 API Format (Expected)
-
-### GET /players
-
-```json
-[
-  { "id": "1", "name": "Patrick Mahomes" },
-  { "id": "2", "name": "Justin Jefferson" }
-]
-```
-
-### GET /player/:id
-
-```json
-{
-  "name": "Patrick Mahomes",
-  "team": "Chiefs",
-  "stats": "4000 yds / 35 TDs",
-  "image": "/path/to/image.png",
-  "color": "#FF0000"
-}
-```
-
----
-
-## 🔧 Features & Customization
-
-- Updates multiple OBS sources in real-time  
-- Changes background color using color filter  
-- Easily extend to update more elements or run on a timer  
-- Optional: add GUI or auto-refresh mode
-
----
 
 ## 📄 License
 
