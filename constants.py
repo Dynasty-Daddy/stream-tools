@@ -1,8 +1,18 @@
+# files
+PLAYER_DATA_FILE = 'current_player_data.json'
+
+# urls
 PLAYER_IMG_URL = "https://sleepercdn.com/content/nfl/players/thumb/SLEEPER_ID.jpg"
 PLAYER_LIST_URL = "https://dynasty-daddy.com/api/v1/player/all/today"
+DYNASTY_DADDY_MARKET_URL = "https://dynasty-daddy.com/api/v1/player/all/market/14"
+FANTASY_DADDY_MARKET_URL = "https://dynasty-daddy.com/api/v1/player/all/market/15"
+ADP_DADDY_MARKET_URL = "https://dynasty-daddy.com/api/v1/player/all/market/6"
+ADP_DADDY_RD_MARKET_URL = "https://dynasty-daddy.com/api/v1/player/all/market/7"
 NFL_TEAM_IMG_URL = "https://a.espncdn.com/i/teamlogos/nfl/500/TEAM_ACC.png"
 DEFAULT_PLAYER_IMG_URL = "https://www.pff.com/images/webui/player_default.png"
 PLAYER_STATS_URL = "https://api.sleeper.app/v1/stats/nfl/regular/SEASON"
+
+MARKET_FIELDS = ["trade_value", "sf_trade_value", "position_rank", "sf_position_rank", "sf_overall_rank", "overall_rank"]
 
 TEAM_PRIMARY_COLOR_HEX = {
     "ARI": "#97233F", "ATL": "#A71930", "BAL": "#241773", "BUF": "#00338D",
@@ -13,6 +23,90 @@ TEAM_PRIMARY_COLOR_HEX = {
     "MIN": "#4F2683", "NE":  "#002244", "NO":  "#D3BC8D", "NYG": "#0B2265",
     "NYJ": "#125740", "PHI": "#004C54", "PIT": "#FFB612", "SF":  "#AA0000",
     "SEA": "#002244", "TB":  "#D50A0A", "TEN": "#4B92DB", "WAS": "#773141"
+}
+
+SEASON_STATS_BY_POSITION = {
+    "QB": [
+        ("Season", "season"),
+        ("Games", "gp"),
+        ("PPR Points", "pts_ppr"),
+        ("PPG (PPR)", "ppg_ppr"),
+        ("Pass Yds", "pass_yd"),
+        ("Pass TDs", "pass_td"),
+        ("Ints", "pass_int"),
+        ("Rush Att", "rush_att"),
+        ("Rush Yds", "rush_yd"),
+        ("Rush TDs", "rush_td"),
+        ("Sacks", "pass_sack")
+    ],
+    "RB": [
+        ("Season", "season"),
+        ("Games", "gp"),
+        ("PPR Points", "pts_ppr"),
+        ("PPG (PPR)", "ppg_ppr"),
+        ("Rush Att", "rush_att"),
+        ("Rush Yds", "rush_yd"),
+        ("Rush TDs", "rush_td"),
+        ("Rec", "rec"),
+        ("Rec Yds", "rec_yd"),
+        ("Rec TDs", "rec_td"),
+    ],
+    "WR": [
+        ("Season", "season"),
+        ("Games", "gp"),
+        ("PPR Points", "pts_ppr"),
+        ("PPG (PPR)", "ppg_ppr"),
+        ("Rec", "rec"),
+        ("Rec Yds", "rec_yd"),
+        ("Rec TDs", "rec_td"),
+    ],
+    "TE": [
+        ("Season", "season"),
+        ("Games", "gp"),
+        ("PPR Points", "pts_ppr"),
+        ("PPG (PPR)", "ppg_ppr"),
+        ("Rec", "rec"),
+        ("Rec Yds", "rec_yd"),
+        ("Rec TDs", "rec_td"),
+    ],
+}
+
+WEEKLY_STATS_BY_POSITION = {
+    "QB": [
+        ("Week", "week"),
+        ("PPR Points", "pts_ppr"),
+        ("Pass Yds", "pass_yd"),
+        ("Pass TDs", "pass_td"),
+        ("Ints", "pass_int"),
+        ("Rush Att", "rush_att"),
+        ("Rush Yds", "rush_yd"),
+        ("Rush TDs", "rush_td"),
+        ("Sacks", "pass_sack")
+    ],
+    "RB": [
+        ("Week", "week"),
+        ("PPR Points", "pts_ppr"),
+        ("Rush Att", "rush_att"),
+        ("Rush Yds", "rush_yd"),
+        ("Rush TDs", "rush_td"),
+        ("Rec", "rec"),
+        ("Rec Yds", "rec_yd"),
+        ("Rec TDs", "rec_td"),
+    ],
+    "WR": [
+        ("Week", "week"),
+        ("PPR Points", "pts_ppr"),
+        ("Rec", "rec"),
+        ("Rec Yds", "rec_yd"),
+        ("Rec TDs", "rec_td"),
+    ],
+    "TE": [
+        ("Week", "week"),
+        ("PPR Points", "pts_ppr"),
+        ("Rec", "rec"),
+        ("Rec Yds", "rec_yd"),
+        ("Rec TDs", "rec_td"),
+    ],
 }
 
 IMG_CSS = """
@@ -223,12 +317,17 @@ PAGE_HTML = """
 </head>
 <body>
   <header>
-    <div>Dynasty Daddy Stream Suite</div>
-    <nav>
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <img src="/static/favicon.png" alt="favicon" style="width: 24px; height: 24px;">
+      <span>Dynasty Daddy Stream Suite</span>
+    </div>
+    <nav style="display: flex; align-items: center;">
       <a href="https://github.com/Dynasty-Daddy/stream-tools#readme" target="_blank" rel="noopener noreferrer">How to use</a>
       <a href="https://dynasty-daddy.com" target="_blank" rel="noopener noreferrer">Dynasty Daddy</a>
+      <a href="/config" title="Configuration" style="font-size: 1.25rem; margin-left: 1.25rem;">⚙️</a>
     </nav>
   </header>
+
 
   {% if queue %}
     <div class="queue-section">
@@ -307,6 +406,41 @@ CONFIG_HTML = """
       margin: 0;
     }
 
+        /* New header styles */
+    header {
+      position: fixed;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 700px;
+      max-width: 95vw;
+      background-color: #1d4ed8;
+      color: white;
+      padding: 1rem 2rem;
+      border-radius: 0 0 12px 12px;
+      box-shadow: 0 4px 12px rgb(0 0 0 / 0.15);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+      font-size: 1.25rem;
+      z-index: 1000;
+    }
+
+    header nav a {
+      color: #bfdbfe;
+      margin-left: 1rem;
+      font-weight: 500;
+      font-size: 1rem;
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    header nav a:hover {
+      color: #93c5fd;
+      text-decoration: underline;
+    }
+
     .config-container {
       background: #fff;
       padding: 2rem 3rem;
@@ -358,7 +492,22 @@ CONFIG_HTML = """
   </style>
 </head>
 <body>
+  <header>
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <img src="/static/favicon.png" alt="favicon" style="width: 24px; height: 24px;">
+      <span>Dynasty Daddy Stream Suite</span>
+    </div>
+    <nav style="display: flex; align-items: center;">
+      <a href="https://github.com/Dynasty-Daddy/stream-tools#readme" target="_blank" rel="noopener noreferrer">How to use</a>
+      <a href="https://dynasty-daddy.com" target="_blank" rel="noopener noreferrer">Dynasty Daddy</a>
+    </nav>
+  </header>
+
+
   <div class="config-container">
+    <a href="/" style="display: inline-block; margin-bottom: 1rem; color: #3498db; text-decoration: none; font-weight: 600;">
+      ← Back to Home
+    </a>
     <h1>OBS Connection Setup</h1>
     <form method="post">
       <label for="host">OBS Host:</label>

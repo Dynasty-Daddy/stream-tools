@@ -3,3 +3,6 @@
 venv
 build/
 __pycache__/
+current_player_data.json
+dynasty_daddy_stream_tools.spec
+_internal
