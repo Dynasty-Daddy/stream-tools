@@ -33,7 +33,9 @@ def generate_stats_html(player_stats_list, fields=SEASON_STATS_BY_POSITION, posi
             value = player_stats.get(key, 0)
             
             # Format number nicely
-            if isinstance(value, float) and value.is_integer():
+            if key == "season":
+                display_value = str(value)
+            elif isinstance(value, float) and value.is_integer():
                 display_value = f"{int(value):,}"
             elif isinstance(value, int):
                 display_value = f"{value:,}"
