@@ -14,7 +14,7 @@ Perfect for fantasy football, live streams, or sports podcasts!
 Grab the latest version of the Stream Suite for your platform:
 
 - 🪟 [Download for Windows (.exe)](https://github.com/Dynasty-Daddy/stream-tools/releases/latest/download/stream-suite.exe)
-- 🍎 [Download for macOS (.zip)](https://github.com/Dynasty-Daddy/stream-tools/releases/latest/download/stream-suite-mac.zip)
+- 🍎 [Download for macOS (.zip)](https://github.com/Dynasty-Daddy/stream-tools/releases/latest/download/stream-suite-mac.zip) (coming soon)
 
 > ℹ️ Make sure to allow the app through your firewall and OBS WebSocket settings.
 
@@ -34,6 +34,38 @@ Then:
 2. Go to **Tools → WebSocket Server Settings**  
 3. Enable WebSocket server  
 4. Note the port (default: 4455) and password
+
+<img src="images/connect.png" alt="Select Player" width="250"/>
+
+---
+
+## ❔ How to use
+
+After connected, you can select a player to show stats and info about that player. Search for players and queue players up so you can just press show next to update your overlays.
+
+<img src="images/player_select.png" alt="Select Player" width="300"/>
+
+Here's what a queue looks like when building a show sheet...
+
+<img src="images/queue.png" alt="Queue Player" width="300"/>
+
+### Examples
+
+Here's a very simple example that displays name, trade value, player & team image, and a table of stats. After configuring OBS by naming the fields to match the table below I can now populate information with ease.
+
+<img src="images/sources.png" alt="Nabers Example" width="200"/>
+
+(Here are my sources)
+
+Let's select Jayden Daniels from the tool, and this is what I see.
+
+<img src="images/jd_example.png" alt="Daniels Example" width="400"/>
+
+Now let's select Malik Nabers. With not changes to my overlay, everything updates automatically!
+
+<img src="images/nabers_example.png" alt="Nabers Example" width="400"/>
+
+(Note: I changed the table to be season gamelogs here)
 
 ---
 
@@ -168,10 +200,6 @@ OBS_PASSWORD: The password you set for your OBS WebSocket server (can be empty i
 ```bash
 pyinstaller --onefile --add-data "static;static" --icon=static/favicon.ico dynasty_daddy_stream_tools.py
 ```
-
-## 📄 License
-
-MIT License
 
 ---
 
