@@ -166,7 +166,7 @@ OBS_PASSWORD: The password you set for your OBS WebSocket server (can be empty i
 3. Build a standalone executable with:
 
 ```bash
-pyinstaller --add-data "static;static" dynasty_daddy_stream_tools.py
+pyinstaller --onefile --add-data "static;static" --icon=static/favicon.ico dynasty_daddy_stream_tools.py
 ```
 
 ## 📄 License

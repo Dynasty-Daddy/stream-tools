@@ -14,7 +14,7 @@ from table import generate_stats_html
 # CONFIGURE
 load_dotenv()
 OBS_HOST = os.getenv("OBS_HOST")
-OBS_PORT = int(os.getenv("OBS_PORT"))
+OBS_PORT = os.getenv("OBS_PORT")
 OBS_PASSWORD = os.getenv("OBS_PASSWORD")
 
 app = Flask(__name__, static_folder='static')
