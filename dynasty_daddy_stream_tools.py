@@ -254,7 +254,6 @@ def update_obs_player(player):
         if not isinstance(p, dict) or p.get(sleeper_id, {}).get("pts_ppr", None) is None:
             continue
         weekly_log = p.get(sleeper_id, {}) 
-        print(week)
         weekly_log["week"] = week
         weekly_logs.append(weekly_log)
     weekly_logs.reverse()
