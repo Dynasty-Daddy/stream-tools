@@ -116,7 +116,6 @@ def update_obs_player(player):
 
     sleeper_id = str(player.get("sleeper_id"))
     stats = player_stats.get(cur_season).get(sleeper_id, {})
-
     fields = {
         "PlayerName": player['full_name'],
         "PlayerFirstName": player['first_name'],
@@ -172,16 +171,16 @@ def update_obs_player(player):
         "PlayerPPGHalfPPR": f"{stats.get('pts_half_ppr', 0.0) / stats.get('gp', 1):.2f}",
         "PlayerPPGPPR": f"{stats.get('pts_ppr', 0.0) / stats.get('gp', 1):.2f}",
         "PlayerPPGSTD": f"{stats.get('pts_std', 0.0) / stats.get('gp', 1):.2f}",
-        "PlayerReceptions": str(player.get("rec", 0)),
-        "PlayerReceivingYards": str(player.get("rec_yd", 0)),
-        "PlayerReceivingTDs": str(player.get("rec_td", 0)),
-        "PlayerRushingAttempts": str(player.get("rush_att", 0)),
-        "PlayerRushingYards": str(player.get("rush_yd", 0)),
-        "PlayerRushingTDs": str(player.get("rush_td", 0)),
-        "PlayerPassingYards": str(player.get("pass_yd", 0)),
-        "PlayerPassingTDs": str(player.get("pass_td", 0)),
-        "PlayerInterceptions": str(player.get("int", 0)),
-        "PlayerGamesPlayed": str(player.get("gp", 0)),
+        "PlayerReceptions": f"{int(stats.get('rec', 0)):,}",
+        "PlayerReceivingYards": f"{int(stats.get('rec_yd', 0)):,}",
+        "PlayerReceivingTDs": f"{int(stats.get('rec_td', 0)):,}",
+        "PlayerRushingAttempts": f"{int(stats.get('rush_att', 0)):,}",
+        "PlayerRushingYards": f"{int(stats.get('rush_yd', 0)):,}",
+        "PlayerRushingTDs": f"{int(stats.get('rush_td', 0)):,}",
+        "PlayerPassingYards": f"{int(stats.get('pass_yd', 0)):,}",
+        "PlayerPassingTDs": f"{int(stats.get('pass_td', 0)):,}",
+        "PlayerInterceptions": f"{int(stats.get('int', 0)):,}",
+        "PlayerGamesPlayed": f"{int(stats.get('gp', 0)):,}",
         # Add more fields as needed...
     }
 
@@ -189,9 +188,7 @@ def update_obs_player(player):
         try:
             ws.set_input_settings(input_name, {"text": text_value}, True)
         except OBSSDKRequestError as e:
-            if e.code == 600:
-                print(f"⚠️ Skipped missing source: '{input_name}'")
-            else:
+            if e.code != 600:
                 print(f"⚠️ Error updating '{input_name}' - {e}")
 
     # Player Image Mapping
@@ -210,7 +207,8 @@ def update_obs_player(player):
             True
         )
     except OBSSDKRequestError as e:
-        print(f"⚠️ Error updating PlayerImg source - {str(e)}")
+        if e.code != 600:
+            print(f"⚠️ Error updating PlayerImg source - {str(e)}")
 
     # Team Image Mapping
     team_acc = player['team'].lower()
@@ -226,7 +224,8 @@ def update_obs_player(player):
             True
         )
     except OBSSDKRequestError as e:
-        print(f"⚠️ Error updating PlayerTeamImg source - {str(e)}")
+        if e.code != 600:
+            print(f"⚠️ Error updating PlayerTeamImg source - {str(e)}")
     
     # Team Color Mapping
     current_team_color = TEAM_PRIMARY_COLOR_HEX.get(player['team'], "#FFFFFF")
@@ -238,7 +237,8 @@ def update_obs_player(player):
             "color": color_int
         }, overlay=True)
     except OBSSDKRequestError as e:
-        print(f"Warning: Couldn't update color filter - {e}")
+        if e.code != 600:
+            print(f"Warning: Couldn't update color filter - {e}")
     
     season_stats = []
     player_stats.get(cur_season).get(sleeper_id, {})
@@ -266,14 +266,15 @@ def update_obs_player(player):
         refreshed_url = f"http://127.0.0.1:5000/player_gamelogs_by_season"
         ws.set_input_settings("SeasonGamelogs", {"url": refreshed_url}, overlay=True)
     except OBSSDKRequestError as e:
-        print(f"Warning: Couldn't update SeasonGamelogs - {e}")
+        if e.code != 600:
+            print(f"Warning: Couldn't update SeasonGamelogs - {e}")
 
     try:
         refreshed_url = f"http://127.0.0.1:5000/player_gamelogs_by_week"
         ws.set_input_settings("WeeklyGamelogs", {"url": refreshed_url}, overlay=True)
     except OBSSDKRequestError as e:
-        print(f"Warning: Couldn't update WeeklyGamelogs - {e}")
-
+        if e.code != 600:
+            print(f"Warning: Couldn't update WeeklyGamelogs - {e}")
 
 def get_queue():
     return session.get("queue", [])
