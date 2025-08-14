@@ -116,6 +116,7 @@ def update_obs_player(player):
 
     sleeper_id = str(player.get("sleeper_id"))
     stats = player_stats.get(cur_season).get(sleeper_id, {})
+    print(stats)
     fields = {
         "PlayerName": player['full_name'],
         "PlayerFirstName": player['first_name'],
@@ -161,7 +162,7 @@ def update_obs_player(player):
         "PlayerAge": str(player.get('age', '')),
         "PlayerExperience": str(player.get('experience', '')),
         "PlayerInjuryStatus": player.get('injury_status') or "Healthy",
-        "PlayerDynastyADP": str(player.get('dynasty_daddy_adp', '')),
+        "PlayerDaddyADP": str(player.get('dynasty_daddy_adp', '')),
         "PlayerUnderdogADP": str(player.get('underdog_adp', '')),
         "PlayerAvgADP": str(player.get('avg_adp', '')),
         "PlayerPPRPoints": str(stats.get("pts_ppr", "0")),
@@ -179,7 +180,7 @@ def update_obs_player(player):
         "PlayerRushingTDs": f"{int(stats.get('rush_td', 0)):,}",
         "PlayerPassingYards": f"{int(stats.get('pass_yd', 0)):,}",
         "PlayerPassingTDs": f"{int(stats.get('pass_td', 0)):,}",
-        "PlayerInterceptions": f"{int(stats.get('int', 0)):,}",
+        "PlayerInterceptions": f"{int(stats.get('pass_int', 0)):,}",
         "PlayerGamesPlayed": f"{int(stats.get('gp', 0)):,}",
         # Add more fields as needed...
     }
