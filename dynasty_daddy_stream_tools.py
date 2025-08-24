@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import threading
 import webbrowser
 from flask import Flask, redirect, render_template_string, request, url_for, session, send_from_directory
@@ -9,7 +9,7 @@ from obsws_python.error import OBSSDKRequestError
 from dotenv import load_dotenv
 from constants import ADP_DADDY_MARKET_URL, ADP_DADDY_RD_MARKET_URL, CONFIG_HTML, DEFAULT_PLAYER_IMG_URL, DYNASTY_DADDY_MARKET_URL, FANTASY_DADDY_MARKET_URL, IMG_CSS, MARKET_FIELDS, NFL_TEAM_IMG_URL, PAGE_HTML, PLAYER_IMG_URL, PLAYER_LIST_URL, PLAYER_STATS_URL, SEASON_STATS_BY_POSITION, TEAM_PRIMARY_COLOR_HEX, WEEKLY_STATS_BY_POSITION
 from player import load_player_data, save_player_data
-from table import generate_stats_html
+from table import generate_stats_html, lighten_color
 
 # CONFIGURE
 load_dotenv()
@@ -115,8 +115,8 @@ def update_obs_player(player):
     )
 
     sleeper_id = str(player.get("sleeper_id"))
+    name_id = str(player.get("name_id"))
     stats = player_stats.get(cur_season).get(sleeper_id, {})
-    print(stats)
     fields = {
         "PlayerName": player['full_name'],
         "PlayerFirstName": player['first_name'],
@@ -135,8 +135,8 @@ def update_obs_player(player):
         "DynastyDaddySFPosRank": str(player.get('dynasty_sf_position_rank', '0')),
         "DynastyDaddy1QBPosRank": str(player.get('dynasty_position_rank', '0')),
         "DynastyDaddySFRank": str(player.get('dynasty_sf_overall_rank', '0')),
-        "DynastyDaddy1QBCutRank": str(player.get('dynasty_overall_rank', '0')),        
-
+        "DynastyDaddy1QBRank": str(player.get('dynasty_overall_rank', '0')),
+        
         "FantasyDaddySFValue": str(player.get('fantasy_sf_trade_value', '0')),
         "FantasyDaddy1QBValue": str(player.get('fantasy_trade_value', '0')),
         "FantasyDaddySFPosRank": str(player.get('fantasy_sf_position_rank', '0')),
@@ -259,7 +259,11 @@ def update_obs_player(player):
         weekly_logs.append(weekly_log)
     weekly_logs.reverse()
 
-    save_player_data(season_stats, weekly_logs, player.get("position"), current_team_color)
+    api_url = f"https://dynasty-daddy.com/api/v1/player/{name_id}?isAllTime=false"
+    resp = http_requests.get(api_url)
+    trade_value_history = resp.json() if resp.status_code == 200 else []
+
+    save_player_data(season_stats, weekly_logs, player.get("position"), current_team_color, trade_value_history)
 
     # Re-set the URL to force a refresh
     
@@ -276,6 +280,14 @@ def update_obs_player(player):
     except OBSSDKRequestError as e:
         if e.code != 600:
             print(f"Warning: Couldn't update WeeklyGamelogs - {e}")
+            
+    try:
+        chart_url = f"http://127.0.0.1:5000/trade_value_history"
+        ws.set_input_settings("TradeValueChart", {"url": chart_url}, overlay=True)
+    except OBSSDKRequestError as e:
+        if e.code != 600:
+            print(f"Warning: Couldn't update TradeValueChart - {e}")
+
 
 def get_queue():
     return session.get("queue", [])
@@ -388,6 +400,95 @@ def serve_player_gamelogs_by_week_table():
             team_color=player.get("team_color")
         )
         return render_template_string(html_output)
+
+@app.route("/trade_value_history")
+def trade_value_history():
+    # Get optional query parameters
+    sf = request.args.get("sf", "true").lower() == "true"
+    days = request.args.get("days", type=int, default=90)
+    days = min(days, 90)
+    player = load_player_data()
+    if player.get("trade_value_history", None) is not None:
+        data = player.get("trade_value_history", [])
+        color = player.get("team_color", "#3f7bfb")
+        lighter_color = lighten_color(color, factor=0.5)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+        def parse_date(d):
+            d = d.replace("Z00:00:00Z", "Z")
+            return datetime.fromisoformat(d.replace("Z", "+00:00"))
+
+        # Filter by cutoff
+        filtered_data = [row for row in data if row.get("date") and parse_date(row["date"]) >= cutoff]
+
+        # Filter only entries that contain 'date' and 'sf_trade_value'
+        timeseries = [
+            {"ts": entry.get("date"), "value": entry.get("daddy_sf_trade_value" if sf else "daddy_trade_value", 0)}
+            for entry in filtered_data
+            if entry.get("date") and entry.get("daddy_sf_trade_value" if sf else "daddy_trade_value") is not None
+        ]
+
+        # Ensure data is sorted chronologically (oldest first)
+        timeseries.sort(key=lambda x: x["ts"])
+
+        labels = [t["ts"] for t in timeseries]
+        values = [t["value"] for t in timeseries]
+
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <style>
+            body {{ margin: 0; width: 100%; height: 75%; background: transparent; }}
+            #chart-container {{ width: 100%; height: 75%; }}
+            canvas {{ background-color: transparent; }}
+        </style>
+        </head>
+        <body>
+        <div id="chart-container">
+            <canvas id="sfLineChart"></canvas>
+        </div>
+        <script>
+            const ctx = document.getElementById('sfLineChart').getContext('2d');
+            new Chart(ctx, {{
+            type: 'line',
+            data: {{
+                labels: {labels},
+                datasets: [{{
+                label: 'SF Trade Value',
+                data: {values},
+                borderColor: "{color}",
+                backgroundColor: "{lighter_color}",
+                tension: 0.4,
+                pointRadius: 0,
+                fill: true
+                }}]
+            }},
+            options: {{
+                responsive: true,
+                aspectRatio: 4/3,
+                scales: {{
+                x: {{
+                    display: false,
+                    grid: {{ display: false }},
+                    beginAtZero: false
+                }},
+                y: {{
+                    display: false,
+                    grid: {{ display: false }},
+                    beginAtZero: false
+                }}
+                }},
+                plugins: {{ legend: {{ display: false }} }}
+            }}
+            }});
+        </script>
+        </body>
+        </html>
+        """
+
+        return render_template_string(html)
 
 if __name__ == "__main__":
     app.secret_key = "dynasty_daddy_stream_suite"

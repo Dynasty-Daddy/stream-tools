@@ -116,3 +116,16 @@ def generate_stats_html(player_stats_list, fields=SEASON_STATS_BY_POSITION, posi
     </html>
     """
     return html_content
+
+def lighten_color(hex_color, factor=0.5):
+    """Lighten a hex color by a given factor (0=original, 1=white)"""
+    hex_color = hex_color.lstrip("#")
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+
+    r = int(r + (255 - r) * factor)
+    g = int(g + (255 - g) * factor)
+    b = int(b + (255 - b) * factor)
+
+    return f"#{r:02x}{g:02x}{b:02x}"

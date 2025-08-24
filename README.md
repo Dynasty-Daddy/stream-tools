@@ -104,7 +104,7 @@ Create the following sources in your OBS scene **with exact names**:
 | DynastyDaddySFPosRank      | Text (GDI+)  | Dynasty Daddy superflex position rank                  |
 | DynastyDaddy1QBPosRank     | Text (GDI+)  | Dynasty Daddy 1QB position rank                        |
 | DynastyDaddySFRank         | Text (GDI+)  | Dynasty Daddy superflex overall rank                   |
-| DynastyDaddy1QBCutRank     | Text (GDI+)  | Dynasty Daddy 1QB overall rank                         |
+| DynastyDaddy1QBRank        | Text (GDI+)  | Dynasty Daddy 1QB overall rank                         |
 | **Fantasy Daddy**          |              |                                                        |
 | FantasyDaddySFValue        | Text (GDI+)  | Fantasy Daddy superflex trade value                    |
 | FantasyDaddy1QBValue       | Text (GDI+)  | Fantasy Daddy 1QB trade value                          |
@@ -160,6 +160,24 @@ Create the following sources in your OBS scene **with exact names**:
 | -------------------------- | ---------------------------------------------------- |
 | SeasonGamelogs             | http://127.0.0.1:5000/player_gamelogs_by_season      |
 | WeeklyGamelogs              | http://127.0.0.1:5000/player_gamelogs_by_week        |
+
+
+### Add Chart Type to OBS
+
+1. Create a Browser source called `TradeValueChart` in OBS  
+2. Right-click & Select **Properties**
+3. Set the URL to the following
+
+| Field Name                 | URL                                                  |
+| -------------------------- | ---------------------------------------------------- |
+| TradeValueChart             | http://127.0.0.1:5000/trade_value_history           |
+
+#### Options
+
+| Option Name | Description                                      | Default |
+| ----------- | ------------------------------------------------ | ------- |
+| sf          | Use Superflex (`true`) or 1-QB (`false`) trade values | true    |
+| days        | Number of days the chart goes back (max 90)     | 90      |
 
 ---
 
